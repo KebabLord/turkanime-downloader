@@ -8,3 +8,6 @@ rich>=13.0.0
 easygui
 questionary
 requests
+plyer
+playsound
+pyobjus

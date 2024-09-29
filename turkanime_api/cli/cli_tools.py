@@ -1,10 +1,9 @@
-from os import name,system,path,listdir
+from os import path, getcwd, system, name, listdir
 from tempfile import NamedTemporaryFile
 import re
 from time import sleep
 from threading import Thread
 from prompt_toolkit import styles
-
 from rich.panel import Panel
 from rich.console import Group
 from rich.progress import (
@@ -17,6 +16,31 @@ from rich.progress import (
     TaskProgressColumn,
     TransferSpeedColumn
 )
+from plyer import notification
+from playsound import playsound
+
+def send_notification(title, message):
+    current_os = platform.system()
+    if current_os == "Darwin":
+        system(f'''
+               osascript -e 'display notification "{message}" with title "{title}"'
+               ''')
+    elif current_os == "Windows":
+        from plyer import notification
+        notification.notify(
+            title=title,
+            message=message,
+            app_name='Turkanime İndirici'
+        )
+    elif current_os == "Linux":
+        from plyer import notification
+        notification.notify(
+            title=title,
+            message=message,
+            app_name='Turkanime İndirici'
+        )
+    else:
+        print(f"Bildirim gönderilemiyor: Desteklenmeyen işletim sistemi ({current_os})")
 
 def clear():
     """ Daha kompakt görüntü için her prompt sonrası clear
@@ -101,7 +125,7 @@ class VidSearchCLI():
         self.progress.update(task_id, completed=completed, description=msg)
 
 
-def indirme_task_cli(bolum,table,dosya):
+def indirme_task_cli(bolum, table, dosya):
     """ Progress barı dinamik olarak güncellerken indirme yapar. """
     vid_cli = VidSearchCLI()
     dl_cli = DownloadCLI()
@@ -110,7 +134,6 @@ def indirme_task_cli(bolum,table,dosya):
             title=bolum.slug,
             border_style="green"))
     table.add_row("")
-    # En iyi çalışan videoyu bul.
     best_video = bolum.best_video(
         by_res=dosya.ayarlar["max resolution"],
         callback=vid_cli.callback)
@@ -122,6 +145,20 @@ def indirme_task_cli(bolum,table,dosya):
         indir_aria2c(best_video, callback=dl_cli.ytdl_callback, output=down_dir)
     else:
         best_video.indir(callback=dl_cli.ytdl_callback, output=down_dir)
+    
+    try:
+        send_notification('İndirme Tamamlandı', 'Anime indirildi.')
+    except Exception as e:
+        print(f"Bildirim gönderilemedi: {e}")
+
+    try:
+        real_path = path.join(path.expanduser("~"), "TurkAnimu")
+        if path.isdir(".git"):
+            real_path = getcwd()
+        playsound(path.join(real_path, "turkanime_api", "sound", "complete.mp3"))
+    except Exception as e:
+        print(f"Ses çalınamadı: {e}")
+
     dosya.set_gecmis(bolum.anime.slug, bolum.slug, "indirildi")
 
 
@@ -173,8 +210,8 @@ def indir_aria2c(video, callback, output):
     file_size_thread = Thread(target=custom_hook)
     file_size_thread.start()
     video.indir(callback, output)
-    is_finished = True
     file_size_thread.join()
+    is_finished = True        
     callback({"status": "finished"})
     del tmp
 
