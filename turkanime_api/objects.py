@@ -83,11 +83,22 @@ class Anime:
 
     def fetch_info(self):
         """Anime detay sayfasını ayrıştır."""
-        src = self.driver.execute_script(f"return $.get('/anime/{self.slug}')")
-        twitmeta = re.findall(r'twitter.image" content="(.*?serilerb/(.*?)\.jpg)"',src)[0]
-        self.info["Resim"], self.anime_id = twitmeta
-        if not self.title:
-            self.title = re.findall(r'<title>(.*?)<\/title>',src).pop()
+        script = f"""
+        var callback = arguments[arguments.length - 1];
+        fetch('/anime/{self.slug}')
+            .then(response => response.text())
+        .then(data => {{
+            callback(data);
+        }})
+        .catch(error => {{
+            callback(null);
+        }});
+    """
+    src = self.driver.execute_async_script(script)
+    if src is None:
+        raise Exception("Failed to fetch anime info.")
+    self._parse_info(src)
+
 
         # Anime sayfasındaki bilgi tablosunu parse'la
         info_table=re.findall(r'<div id="animedetay">(<table.*?</table>)',src)[0]
